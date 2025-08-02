@@ -336,9 +336,14 @@ function removePointers() {
 function debounceRefresh() {
     if (debounceTimeout) clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(() => {
+        // Sprawdź czy canvas jest gotowy
+        if (!canvas?.ready) return;
+        
+        // Force update actors and redraw
+        lastZoom = null;
         updateActorsOnMap();
         drawPointersForActors();
-    }, 100); // 100ms debounce
+    }, 150); // Zwiększono debounce do 150ms dla płynności
 }
 
 // Hooki
@@ -368,16 +373,22 @@ Hooks.on('updateScene', debounceRefresh);
 
 const actorTokenHooks = [
     'createActor', 'deleteActor',
-    'createToken', 'deleteToken', 'updateToken'
+    'createToken', 'deleteToken', 'updateToken',
+    'refreshToken', 'refreshScene'
 ];
 actorTokenHooks.forEach(hook => Hooks.on(hook, debounceRefresh));
 
 Hooks.on('canvasPan', debounceRefresh);
 Hooks.on('updateToken', (token, updateData) => {
     // If the token's position or visibility changed, redraw pointers
-    if (updateData.x || updateData.y || updateData.hidden) {
+    if (updateData.x !== undefined || updateData.y !== undefined || updateData.hidden !== undefined) {
         debounceRefresh();
     }
+});
+
+// Dodatkowy hook dla tworzenia tokenów
+Hooks.on('createToken', (token) => {
+    debounceRefresh();
 });
 
 // Handle pointer clicks on the canvas
