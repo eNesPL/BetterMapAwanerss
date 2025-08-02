@@ -182,10 +182,15 @@ function drawPointersForActors() {
     removePointers();
     if (zoom >= 0.9) return;
 
-    // Create graphics object and add to canvas
+    // Create graphics object with hit area and add to canvas
     pointerGraphics = new PIXI.Graphics();
     pointerGraphics.zIndex = 10000;
+    pointerGraphics.eventMode = 'static'; // Enable interactivity
+    pointerGraphics.cursor = 'pointer'; // Change cursor on hover
     canvas.stage.addChild(pointerGraphics);
+
+    // Store tokens in graphics object for click handling
+    pointerGraphics.tokens = [];
 
     // Calculate circle radius once
     const circleRadius = baseRadius / zoom * 0.3;
@@ -283,6 +288,14 @@ function drawPointersForActors() {
                 pointerGraphics.beginFill(tokenColor, isSelfOwned ? 1 : 0.8);
                 pointerGraphics.drawCircle(token.center.x, token.center.y, circleRadius);
                 pointerGraphics.endFill();
+                
+                // Store token reference in graphics object
+                pointerGraphics.tokens.push({
+                    x: token.center.x,
+                    y: token.center.y,
+                    radius: circleRadius,
+                    token: token
+                });
             }
             continue; // Skip the default batch rendering
         } else {
@@ -298,6 +311,13 @@ function drawPointersForActors() {
         pointerGraphics.beginFill(color, 1);
         for (const token of tokens) {
             pointerGraphics.drawCircle(token.center.x, token.center.y, circleRadius);
+            // Store token reference in graphics object
+            pointerGraphics.tokens.push({
+                x: token.center.x,
+                y: token.center.y,
+                radius: circleRadius,
+                token: token
+            });
         }
         pointerGraphics.endFill();
     }
@@ -353,3 +373,39 @@ const actorTokenHooks = [
 actorTokenHooks.forEach(hook => Hooks.on(hook, debounceRefresh));
 
 Hooks.on('canvasPan', debounceRefresh);
+
+// Handle pointer clicks on the canvas
+Hooks.on('clickCanvas', (app, evt) => {
+    if (!pointerGraphics || !pointerGraphics.tokens) return;
+    
+    // Get canvas coordinates
+    const pos = canvas.stage.toLocal(evt.data.global);
+    
+    // Find closest token within radius
+    let closest = null;
+    let minDist = Infinity;
+    
+    for (const hp of pointerGraphics.tokens) {
+        const dx = pos.x - hp.x;
+        const dy = pos.y - hp.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        
+        if (dist <= hp.radius && dist < minDist) {
+            minDist = dist;
+            closest = hp.token;
+        }
+    }
+    
+    if (closest) {
+        // Forward the click to the token
+        if (evt.data.originalEvent.button === 0) {
+            // Left click - select token
+            closest.control({releaseOthers: !evt.data.originalEvent.ctrlKey});
+        } else if (evt.data.originalEvent.button === 2) {
+            // Right click - show context menu
+            if (game.user.isGM || closest.actor?.testUserPermission(game.user, "OWNER")) {
+                closest._onClickRight(evt.data.originalEvent);
+            }
+        }
+    }
+});
