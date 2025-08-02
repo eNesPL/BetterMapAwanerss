@@ -414,15 +414,25 @@ Hooks.on('clickCanvas', (app, evt) => {
     }
     
     if (closest) {
-        // Forward the click to the token
-        if (evt.data.originalEvent.button === 0) {
-            // Left click - select token
-            closest.control({releaseOthers: !evt.data.originalEvent.ctrlKey});
-        } else if (evt.data.originalEvent.button === 2) {
-            // Right click - show context menu
-            if (game.user.isGM || closest.actor?.testUserPermission(game.user, "OWNER")) {
-                closest._onClickRight(evt.data.originalEvent);
-            }
-        }
+        // Forward the click to the token with proper event propagation
+        const originalEvent = evt.data.originalEvent;
+        
+        // Create a new event with adjusted coordinates to match the token's position
+        const newEvent = new PointerEvent(originalEvent.type, {
+            clientX: originalEvent.clientX,
+            clientY: originalEvent.clientY,
+            button: originalEvent.button,
+            buttons: originalEvent.buttons,
+            ctrlKey: originalEvent.ctrlKey,
+            shiftKey: originalEvent.shiftKey,
+            altKey: originalEvent.altKey,
+            metaKey: originalEvent.metaKey
+        });
+        
+        // Forward the event to the token's interactivity manager
+        closest.interactiveEmit(newEvent);
+        
+        // Prevent canvas from handling this event
+        evt.stopPropagation();
     }
 });
