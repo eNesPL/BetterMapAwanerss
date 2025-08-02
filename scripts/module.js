@@ -5,7 +5,7 @@ let lastZoom = null;
 let debounceTimeout = null;
 let baseRadius = 40; // Default value
 let selectedTokenIds = new Set(); // Store multiple selected token IDs
-
+let activated = false;
 // Handle token selection for GMs
 function handleTokenSelection(token, controlled) {
     if (!game.user.isGM) return;
@@ -41,6 +41,25 @@ function updateColorCache() {
 }
 
 Hooks.once('init', () => {
+
+    // Register module settings
+    game.settings.register('bettermapawarness', 'enabled', {
+        name: 'Enable Better Map Awareness',
+        hint: 'Enable or disable the Better Map Awareness module',
+        scope: 'client',
+        config: true,
+        type: Boolean,
+        default: false,
+        onChange: value => {
+            activated = value;
+            if (value) {
+                updateActorsOnMap();
+                drawPointersForActors();
+            } else {
+                removePointers();
+            }
+        }
+    });
 
     // zoom level setting
     game.settings.register('bettermapawarness', 'zoomLevel', {
@@ -176,6 +195,7 @@ function updateActorsOnMap() {
 
 // Rysuje wskaźniki dla aktorów gdy zoom < 0.9
 function drawPointersForActors() {
+    if (!activated) return; // Skip if module is not activated
     const zoom = canvas.stage.scale.x;
     //if (lastZoom === zoom) return; // No change in zoom, skip redraw
     lastZoom = zoom;
@@ -185,7 +205,7 @@ function drawPointersForActors() {
     // Create graphics object with hit area and add to canvas
     pointerGraphics = new PIXI.Graphics();
     pointerGraphics.zIndex = 10000;
-    pointerGraphics.eventMode = 'static'; // Enable interactivity
+    pointerGraphics.eventMode = 'none'; // Enable interactivity
     pointerGraphics.cursor = 'pointer'; // Change cursor on hover
     canvas.stage.addChild(pointerGraphics);
 
@@ -336,14 +356,9 @@ function removePointers() {
 function debounceRefresh() {
     if (debounceTimeout) clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(() => {
-        // Sprawdź czy canvas jest gotowy
-        if (!canvas?.ready) return;
-        
-        // Force update actors and redraw
-        lastZoom = null;
         updateActorsOnMap();
         drawPointersForActors();
-    }, 150); // Zwiększono debounce do 150ms dla płynności
+    }, 100); // 100ms debounce
 }
 
 // Hooki
@@ -381,58 +396,7 @@ actorTokenHooks.forEach(hook => Hooks.on(hook, debounceRefresh));
 Hooks.on('canvasPan', debounceRefresh);
 Hooks.on('updateToken', (token, updateData) => {
     // If the token's position or visibility changed, redraw pointers
-    if (updateData.x !== undefined || updateData.y !== undefined || updateData.hidden !== undefined) {
+    if (updateData.x || updateData.y || updateData.hidden) {
         debounceRefresh();
-    }
-});
-
-// Dodatkowy hook dla tworzenia tokenów
-Hooks.on('createToken', (token) => {
-    debounceRefresh();
-});
-
-// Handle pointer clicks on the canvas
-Hooks.on('clickCanvas', (app, evt) => {
-    if (!pointerGraphics || !pointerGraphics.tokens) return;
-    
-    // Get canvas coordinates
-    const pos = canvas.stage.toLocal(evt.data.global);
-    
-    // Find closest token within radius
-    let closest = null;
-    let minDist = Infinity;
-    
-    for (const hp of pointerGraphics.tokens) {
-        const dx = pos.x - hp.x;
-        const dy = pos.y - hp.y;
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        
-        if (dist <= hp.radius && dist < minDist) {
-            minDist = dist;
-            closest = hp.token;
-        }
-    }
-    
-    if (closest) {
-        // Forward the click to the token with proper event propagation
-        const originalEvent = evt.data.originalEvent;
-        
-        // Create a new event with adjusted coordinates to match the token's position
-        const newEvent = new PointerEvent(originalEvent.type, {
-            clientX: originalEvent.clientX,
-            clientY: originalEvent.clientY,
-            button: originalEvent.button,
-            buttons: originalEvent.buttons,
-            ctrlKey: originalEvent.ctrlKey,
-            shiftKey: originalEvent.shiftKey,
-            altKey: originalEvent.altKey,
-            metaKey: originalEvent.metaKey
-        });
-        
-        // Forward the event to the token's interactivity manager
-        closest.interactiveEmit(newEvent);
-        
-        // Prevent canvas from handling this event
-        evt.stopPropagation();
     }
 });
