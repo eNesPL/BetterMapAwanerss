@@ -8,6 +8,15 @@
     "verified": 12,
     "maximum": 13
   },
+  "relationships": {
+    "requires": [
+      {
+        "id": "color-picker",
+        "type": "module",
+        "manifest": "https://github.com/Larkinabout/fvtt-color-picker/releases/releases/latest/download/module.json"
+      }
+    ]
+  },
   "authors": [
     {
       "name": "eNes"
