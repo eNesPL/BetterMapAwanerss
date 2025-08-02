@@ -352,4 +352,12 @@ const actorTokenHooks = [
 ];
 actorTokenHooks.forEach(hook => Hooks.on(hook, debounceRefresh));
 
+// Update pointers during token drag movement
+Hooks.on('updateToken', (scene, tokenData, updates, userId) => {
+    // Only update if position changed
+    if (updates.x !== undefined || updates.y !== undefined) {
+        debounceRefresh();
+    }
+});
+
 Hooks.on('canvasPan', debounceRefresh);
