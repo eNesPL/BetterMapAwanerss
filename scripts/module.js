@@ -101,7 +101,7 @@ Hooks.once('init', () => {
         scope: "client",
         config: true,
         type: new game.colorPicker.ColorPickerField({format: "hex"}),
-        default: "#ff0000",
+        default: "#00ff00",
         onChange: () => {
             updateColorCache();
             drawPointersForActors();
@@ -114,7 +114,7 @@ Hooks.once('init', () => {
         scope: "client",
         config: true,
         type: new game.colorPicker.ColorPickerField({format: "hex"}),
-        default: "#00ff00",
+        default: "#ff0000",
         onChange: () => {
             updateColorCache();
             drawPointersForActors();
@@ -148,7 +148,19 @@ Hooks.once('init', () => {
             drawPointersForActors();
         }
     });
-W
+
+    // Use Player Colors Setting
+    game.settings.register('bettermapawarness', 'usePlayerColors', {
+        name: "Use Player Colors",
+        hint: "Use player-specific colors for their tokens instead of default character colors",
+        scope: "client",
+        config: true,
+        type: Boolean,
+        default: false,
+        onChange: () => {
+            drawPointersForActors();
+        }
+    });
 });
 
 // Aktualizuje aktorów na mapie i według typu
@@ -215,12 +227,72 @@ function drawPointersForActors() {
     for (const [type, tokens] of Object.entries(tokensByType)) {
         if (tokens.length === 0) continue;
         
-        // Use cached colors
-        const color = type === 'yourCharacter' ? colorCache.yourCharacter :
-                     type === 'selectedCharacter' ? colorCache.selectedCharacter :
-                     type === 'character' ? colorCache.character :
-                     type === 'npc' ? colorCache.npc : 
-                     colorCache.other;
+        // Determine color based on settings and token ownership
+        let color;
+        const usePlayerColors = game.settings.get('bettermapawarness', 'usePlayerColors');
+        
+        if (usePlayerColors && (type === 'character' || type === 'yourCharacter')) {
+            // For each token, find its color based on character assignment or ownership
+            pointerGraphics.beginFill(0x000000, 1); // Start with a dummy fill
+            for (const token of tokens) {
+                // First try to find a user who has this actor as their character
+                let ownerUser = Array.from(game.users).find(user => 
+                    user.character?.id === token.actor?.id
+                );
+                
+                // If no user has this as their character, fall back to ownership
+                if (!ownerUser) {
+                    const primaryOwner = Object.entries(token.actor?.ownership || {})
+                        .find(([id, level]) => level === 3 && id !== 'default')?.[0];
+                    ownerUser = game.users.get(primaryOwner);
+                }
+                let tokenColor = colorCache.character; // Default fallback color
+                
+                // Try to get user's color, with fallbacks
+                if (ownerUser) {
+                    try {
+                        let userColor = ownerUser.color;
+                        
+                        // If no color set, try to get from user data
+                        if (!userColor && ownerUser.data) {
+                            userColor = ownerUser.data.color || ownerUser.data?.flags?.color;
+                        }
+                        
+                        // If we have a color, process it
+                        if (userColor) {
+                            // Handle color string format
+                            let colorString = userColor.toString();
+                            if (colorString.startsWith('#')) {
+                                colorString = '0x' + colorString.slice(1);
+                            } else if (!colorString.startsWith('0x')) {
+                                colorString = '0x' + colorString;
+                            }
+                            
+                            const parsed = parseInt(colorString);
+                            if (!isNaN(parsed)) {
+                                tokenColor = parsed;
+                            }
+                        }
+                    } catch (e) {
+                        console.debug(`Could not parse color for user ${ownerUser.name}, using default`);
+                    }
+                }
+                
+                // If it's the current user's token, make it brighter/more visible
+                const isSelfOwned = ownerUser?.id === game.user.id || game.users.current.character?.id === token.actor?.id;
+                pointerGraphics.beginFill(tokenColor, isSelfOwned ? 1 : 0.8);
+                pointerGraphics.drawCircle(token.center.x, token.center.y, circleRadius);
+                pointerGraphics.endFill();
+            }
+            continue; // Skip the default batch rendering
+        } else {
+            // Use default cached colors
+            color = type === 'yourCharacter' ? colorCache.yourCharacter :
+                   type === 'selectedCharacter' ? colorCache.selectedCharacter :
+                   type === 'character' ? colorCache.character :
+                   type === 'npc' ? colorCache.npc : 
+                   colorCache.other;
+        }
         
         // Draw all circles of same type at once
         pointerGraphics.beginFill(color, 1);
@@ -268,6 +340,8 @@ Hooks.once('ready', () => {
             drawPointersForActors();
         });
     }
+
+
 });
 Hooks.on('canvasReady', debounceRefresh);
 Hooks.on('updateScene', debounceRefresh);
@@ -279,4 +353,3 @@ const actorTokenHooks = [
 actorTokenHooks.forEach(hook => Hooks.on(hook, debounceRefresh));
 
 Hooks.on('canvasPan', debounceRefresh);
-
