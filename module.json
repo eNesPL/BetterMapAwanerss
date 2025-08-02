@@ -1,7 +1,7 @@
 {
-  "id": "bettermapawanress",
+  "id": "bettermapawarness",
   "title": "Better Map Awarness",
-  "description": "",
+  "description": "Improves map visibility tracking and enhances player map awareness in FoundryVTT.",
   "version": "#{VERSION}#",
   "compatibility": {
     "minimum": 12,
