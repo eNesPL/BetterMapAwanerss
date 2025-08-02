@@ -334,13 +334,13 @@ function removePointers() {
 
 // Debounce dla częstych hooków
 function debounceRefresh() {
-    console.log("Debounce refresh called");
     if (debounceTimeout) clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(() => {
+        // Sprawdź czy canvas jest gotowy i czy zoom się zmienił
+        if (!canvas?.ready || canvas.stage.scale.x === lastZoom) return;
         updateActorsOnMap();
-        console.debug("Debounce refresh executed");
         drawPointersForActors();
-    }, 100); // 100ms debounce
+    }, 300); // 300ms debounce
 }
 
 // Hooki
@@ -376,9 +376,11 @@ actorTokenHooks.forEach(hook => Hooks.on(hook, debounceRefresh));
 
 Hooks.on('canvasPan', debounceRefresh);
 Hooks.on('updateToken', (token, updateData) => {
-    // If the token's position or visibility changed, redraw pointers
-    if (updateData.x || updateData.y || updateData.hidden) {
-        console.debug(`Token ${token.name} updated, redrawing pointers`);
+    // Only trigger refresh if position or visibility changed
+    const needsUpdate = updateData.x !== undefined || 
+                       updateData.y !== undefined || 
+                       updateData.hidden !== undefined;
+    if (needsUpdate) {
         debounceRefresh();
     }
 });
