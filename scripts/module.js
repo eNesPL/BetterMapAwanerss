@@ -353,11 +353,12 @@ const actorTokenHooks = [
 actorTokenHooks.forEach(hook => Hooks.on(hook, debounceRefresh));
 
 // Update pointers during token drag movement
-Hooks.on('updateToken', (scene, tokenData, updates, userId) => {
-    // Only update if position changed
-    if (updates.x !== undefined || updates.y !== undefined) {
-        debounceRefresh();
-    }
+Hooks.on('updateToken', (tokenDocument, updates, options, userId) => {
+  // Sprawdzenie, czy koordynaty x lub y zostały zmienione
+  if (updates.hasOwnProperty('x') || updates.hasOwnProperty('y')) {
+    console.log("Token position updated, refreshing pointers");
+    debounceRefresh();
+  }
 });
 
 Hooks.on('canvasPan', debounceRefresh);
