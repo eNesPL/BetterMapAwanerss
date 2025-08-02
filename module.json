@@ -13,7 +13,7 @@
       {
         "id": "color-picker",
         "type": "module",
-        "manifest": "https://github.com/Larkinabout/fvtt-color-picker/releases/releases/latest/download/module.json"
+        "manifest": "https://github.com/Larkinabout/fvtt-color-picker/releases/latest/download/module.json"
       }
     ]
   },
