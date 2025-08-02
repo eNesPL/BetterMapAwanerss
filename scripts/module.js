@@ -177,7 +177,7 @@ function updateActorsOnMap() {
 // Rysuje wskaźniki dla aktorów gdy zoom < 0.9
 function drawPointersForActors() {
     const zoom = canvas.stage.scale.x;
-    if (zoom === lastZoom) return;
+    //if (lastZoom === zoom) return; // No change in zoom, skip redraw
     lastZoom = zoom;
     removePointers();
     if (zoom >= 0.9) return;
@@ -336,11 +336,9 @@ function removePointers() {
 function debounceRefresh() {
     if (debounceTimeout) clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(() => {
-        // Sprawdź czy canvas jest gotowy i czy zoom się zmienił
-        if (!canvas?.ready || canvas.stage.scale.x === lastZoom) return;
         updateActorsOnMap();
         drawPointersForActors();
-    }, 300); // 300ms debounce
+    }, 100); // 100ms debounce
 }
 
 // Hooki
@@ -376,11 +374,8 @@ actorTokenHooks.forEach(hook => Hooks.on(hook, debounceRefresh));
 
 Hooks.on('canvasPan', debounceRefresh);
 Hooks.on('updateToken', (token, updateData) => {
-    // Only trigger refresh if position or visibility changed
-    const needsUpdate = updateData.x !== undefined || 
-                       updateData.y !== undefined || 
-                       updateData.hidden !== undefined;
-    if (needsUpdate) {
+    // If the token's position or visibility changed, redraw pointers
+    if (updateData.x || updateData.y || updateData.hidden) {
         debounceRefresh();
     }
 });
