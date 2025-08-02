@@ -1,10 +1,8 @@
 {
-  "id": "module",
-  "title": "New Module",
+  "id": "bettermapawanress",
+  "title": "Better Map Awarness",
   "description": "",
   "version": "#{VERSION}#",
-  "library": "false",
-  "manifestPlusVersion": "1.2.0",
   "compatibility": {
     "minimum": 12,
     "verified": 12,
@@ -12,15 +10,9 @@
   },
   "authors": [
     {
-      "name": "The League of Extraordinary FVTT Developers",
-      "url": "https://github.com/League-of-Foundry-Developers",
-      "discord": "discordID#0001"
+      "name": "eNes"
     }
   ],
-  "relationships": {
-    "systems": [],
-    "requires": []
-  },
   "esmodules": [
     "scripts/module.js"
   ],
